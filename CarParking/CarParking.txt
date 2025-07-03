@@ -1,0 +1,133 @@
+class Vehicle{
+
+	private String licensePlate;
+	public Vehicle(String licensePlate) {
+        this.licensePlate = licensePlate;
+    }
+
+    public String getLicensePlate() {
+        return licensePlate;
+    }
+}
+
+Class ParkingSpot{
+	private String id;
+	private Boolean occupied;
+
+	public ParkingSpot(string id){
+		this.id = id;
+		this.occupied = false;
+	}
+	public Boolean isOccupied(){
+		return occupied;
+	}
+
+	public void free(){
+		this.occupied = false;
+	}
+
+	public void occupy(){
+		this.occupied = true;
+	}
+
+	public String getId(){
+		return this.id;
+
+	}
+}
+
+class ParkingTicket{
+	private String ticketId;
+    	private Vehicle vehicle;
+    	private ParkingSpot spot;
+    	private LocalDateTime inTime;
+    	private LocalDateTime outTime;
+
+	public ParkingTicket(Vehicle vehicle, ParkingSpot spot) {
+        this.ticketId = UUID.randomUUID().toString();
+        this.vehicle = vehicle;
+        this.spot = spot;
+        this.inTime = LocalDateTime.now();
+    }
+
+	public String getTicketId() {
+        	return ticketId;
+    }
+
+  	  public ParkingSpot getSpot() {
+  	      return spot;
+    }
+
+   	 public void markExit() {
+    	    outTime = LocalDateTime.now();
+    }
+
+ 	public long getDurationMinutes() {
+        return Duration.between(inTime, outTime).toMinutes();
+    	}
+}
+
+public class ParkingLot {
+    private ParkingSpot[] spots;
+    private Map<String, ParkingTicket> tickets;
+
+    public ParkingLot(int capacity) {
+        spots = new ParkingSpot[capacity];
+        for (int i = 0; i < capacity; i++) {
+            spots[i] = new ParkingSpot("Spot-" + (i + 1));
+        }
+        tickets = new HashMap<>();
+    }
+
+    // Park a vehicle in the first available spot
+    public ParkingTicket park(Vehicle vehicle) {
+        for (ParkingSpot spot : spots) {
+            if (!spot.isOccupied()) {
+                spot.occupy();
+                ParkingTicket ticket = new ParkingTicket(vehicle, spot);
+                tickets.put(ticket.getTicketId(), ticket);
+                System.out.println("Parked at " + spot.getId());
+                return ticket;
+            }
+        }
+        System.out.println("Parking is full");
+        return null;
+    }
+
+    // Unpark using ticket ID
+    public void unpark(String ticketId) {
+        ParkingTicket ticket = tickets.get(ticketId);
+        if (ticket == null) {
+            System.out.println("Invalid ticket");
+            return;
+        }
+        ticket.markExit();
+        ParkingSpot spot = ticket.getSpot();
+        spot.free();
+        long duration = ticket.getDurationMinutes();
+        tickets.remove(ticketId);
+        System.out.println("Unparked from " + spot.getId() + "; Duration: " + duration + " mins");
+    }
+
+    public int getAvailableCount() {
+        int count = 0;
+        for (ParkingSpot spot : spots) {
+            if (!spot.isOccupied()) count++;
+        }
+        return count;
+    }
+
+    public static void main(String[] args) throws InterruptedException {
+        ParkingLot lot = new ParkingLot(5);
+        Vehicle car1 = new Vehicle("KA-01-1234");
+        ParkingTicket t1 = lot.park(car1);
+
+        // Simulate some parking time
+        Thread.sleep(1000);
+
+        lot.unpark(t1.getTicketId());
+        System.out.println("Available spots: " + lot.getAvailableCount());
+    }
+}
+
+	
