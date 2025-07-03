@@ -1,0 +1,205 @@
+
+public class Flight {
+    private final String flightNumber;
+    private final String origin;
+    private final String destination;
+    private final LocalDateTime departure;
+    private final LocalDateTime arrival;
+    private final int capacity;
+    private int seatsAvailable;
+
+    public Flight(String flightNumber, String origin, String destination,
+                  LocalDateTime departure, LocalDateTime arrival, int capacity) {
+        this.flightNumber = flightNumber;
+        this.origin = origin;
+        this.destination = destination;
+        this.departure = departure;
+        this.arrival = arrival;
+        this.capacity = capacity;
+        this.seatsAvailable = capacity;
+    }
+
+   public String getFlightNumber() { return flightNumber; }
+    public String getOrigin()       { return origin; }
+    public String getDestination()  { return destination; }
+    public LocalDateTime getDeparture() { return departure; }
+    public LocalDateTime getArrival()   { return arrival; }
+    public int getCapacity()            { return capacity; }
+    public int getSeatsAvailable()      { return seatsAvailable; }
+
+    public boolean bookSeat() {
+        if (seatsAvailable > 0) {
+            seatsAvailable--;
+            return true;
+        }
+        return false;
+    }
+
+
+  public boolean cancelSeat() {
+        if (seatsAvailable < capacity) {
+            seatsAvailable++;
+            return true;
+        }
+        return false;
+    }
+
+    @Override
+    public String toString() {
+        return String.format("Flight[%s: %s → %s, departs %s, seats left %d/%d]",
+            flightNumber, origin, destination,
+            departure.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME),
+            seatsAvailable, capacity);
+    }
+}
+
+
+public class Passenger {
+    private final String passengerId;
+    private final String name;
+    private final String email;
+
+    public Passenger(String passengerId, String name, String email) {
+        this.passengerId = passengerId;
+        this.name = name;
+        this.email = email;
+    }
+
+    public String getPassengerId() { return passengerId; }
+    public String getName()        { return name; }
+    public String getEmail()       { return email; }
+
+    @Override
+    public String toString() {
+        return String.format("Passenger[%s: %s]", passengerId, name);
+    }
+}
+
+
+public class Booking {
+    private static int counter = 1;
+    private final String bookingId;
+    private final Flight flight;
+    private final Passenger passenger;
+    private final LocalDateTime bookedAt;
+
+    public Booking(Flight flight, Passenger passenger) {
+        this.bookingId  = "BKG" + (counter++);
+        this.flight     = flight;
+        this.passenger  = passenger;
+        this.bookedAt   = LocalDateTime.now();
+    }
+
+    public String getBookingId() { return bookingId; }
+    public Flight getFlight()    { return flight; }
+    public Passenger getPassenger() { return passenger; }
+    public LocalDateTime getBookedAt() { return bookedAt; }
+
+    @Override
+    public String toString() {
+        return String.format("Booking[%s] %s → %s for %s at %s",
+            bookingId,
+            flight.getOrigin(), flight.getDestination(),
+            passenger.getName(),
+            bookedAt.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME));
+    }
+}
+
+
+public class FlightService {
+    private final Map<String, Flight> flights = new HashMap<>();
+
+    public void addFlight(Flight flight) {
+        flights.put(flight.getFlightNumber(), flight);
+    }
+
+    public Optional<Flight> findByNumber(String flightNumber) {
+        return Optional.ofNullable(flights.get(flightNumber));
+    }
+
+    public List<Flight> search(String origin, String destination) {
+        return flights.values().stream()
+            .filter(f -> f.getOrigin().equalsIgnoreCase(origin)
+                      && f.getDestination().equalsIgnoreCase(destination))
+            .collect(Collectors.toList());
+    }
+}
+
+public class BookingService {
+    private final Map<String, Booking> bookings = new HashMap<>();
+
+    public Booking book(Flight flight, Passenger passenger) {
+        if (!flight.bookSeat()) {
+            throw new IllegalStateException("No seats available on flight " + flight.getFlightNumber());
+        }
+        Booking booking = new Booking(flight, passenger);
+        bookings.put(booking.getBookingId(), booking);
+        return booking;
+    }
+
+public boolean cancel(String bookingId) {
+        Booking booking = bookings.remove(bookingId);
+        if (booking != null) {
+            return booking.getFlight().cancelSeat();
+        }
+        return false;
+    }
+
+    public List<Booking> listBookings() {
+        return new ArrayList<>(bookings.values());
+    }
+}
+
+public class FlightManagementApp {
+    public static void main(String[] args) {
+        FlightService flightService = new FlightService();
+        BookingService bookingService = new BookingService();
+
+        // create some flights
+        flightService.addFlight(new Flight(
+            "AI101", "Delhi", "Mumbai",
+            LocalDateTime.of(2025, 7, 15, 9, 0),
+            LocalDateTime.of(2025, 7, 15, 11, 30),
+            100));
+        flightService.addFlight(new Flight(
+            "AI202", "Mumbai", "Bangalore",
+            LocalDateTime.of(2025, 7, 16, 14, 0),
+            LocalDateTime.of(2025, 7, 16, 16, 45),
+            80));
+
+        // search flights
+        System.out.println("Flights Delhi→Mumbai:");
+        flightService.search("Delhi", "Mumbai")
+            .forEach(System.out::println);
+
+        // book a seat
+        Passenger p = new Passenger("P001", "Shivam Shaw", "shivam@example.com");
+        Flight flight = flightService.findByNumber("AI101").orElseThrow();
+        Booking booking = bookingService.book(flight, p);
+        System.out.println("\nNew booking:");
+        System.out.println(booking);
+
+        // list bookings
+        System.out.println("\nAll bookings:");
+        bookingService.listBookings()
+            .forEach(System.out::println);
+
+        // cancel
+        boolean cancelled = bookingService.cancel(booking.getBookingId());
+        System.out.println("\nCanceled booking " + booking.getBookingId() + ": " + cancelled);
+        System.out.println("Seats left on flight: " + flight.getSeatsAvailable());
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
