@@ -1,0 +1,213 @@
+//player1 move = 1  ----  player2 move = -1;
+//empty cell = 0;
+
+public class TicTacToe{
+
+	private final int[][] board;
+	public player1;
+	public player2;
+	int rowsum[];
+	int colsum[];
+	int diagsum;
+	int revdiagsum;
+
+	int n;
+	public TicTacToe(final int n){
+		this.n = n;
+		board = new int[n][n];
+		player1; = new Player();
+		player2; = new Player();
+		rowsum = new int[n];
+		colsum = new int[n];
+		this.diagsum = 0;
+		this.revdiagsum = 0;
+	}
+
+	public int move(int player,int row,int col) throws IllegalArgumentException{
+		if(row<0||col<0||row>=n||col>=n){
+			throw new IllegalArgumentException("Move out of boundary");
+		}
+		else if(board[row][col]!=0){
+			throw new IllegalArgumentException("Cell is already occupied");
+		}
+		else if(player!=0 || player!=1){
+			throw new IllegalArgumentException("Player invalid");
+		}
+		else{
+			board[row][col]=(player==1)?1:-1;
+		}
+		if(CheckStatus(player,row,col)){
+			return player;
+		}
+		else return 0;
+	}
+
+	public Boolean CheckStatus(int player,int row,int col){
+			
+---------------------------------------------------------------------------------------
+		boolean flag = true;
+		for(int i = 0;i < n ; i++){
+			if(board[row][i]!=(player==1)?1:-1){
+				flag=false;
+				break;
+			}	
+		}
+		if(flag)return flag;
+	
+		flag=true;
+		for(int i = 0;i< n ; i++){
+			if(board[i][col]!=(player==1)?1:-1){
+				flag=false;
+				break;
+			}	
+		}
+		if(flag)return flag;
+		flag=true;
+		if(row==col){
+			for(int i = 0;i< n ; i++){
+				if(board[i][i]!=(player==1)?1:-1){
+					flag=false;
+					break;
+				}	
+			}
+			if(flag)return flag;
+		}
+		flag=true;
+		if(row+col==n-1){
+			for(int i = 0;i< n ; i++){
+				if(board[i][n-1-i]!=(player==1)?1:-1){
+					flag=false;
+					break;
+				}	
+			}
+			if(flag)return flag;
+		}
+
+----------------------------------------------------------------------------
+\\ we can do above part in just one single for loop if we think little bit
+
+	bool flag1=true,flag2=true,flag3=true,flag4=true;
+		
+		for(int i = 0;i< n ; i++){
+			if(board[row][i]!=(player==1)?1:-1){
+				flag1=false;
+			}
+			if(board[i][col]!=(player==1)?1:-1){
+				flag2=false;
+			}
+			if(row==col){
+				if(board[i][i]!=(player==1)?1:-1){
+					flag3=false;
+				}
+			}
+			else flag3=false;
+			if(row+col==n-1){
+				if(board[i][n-1-i]!=(player==1)?1:-1){
+					flag4=false;
+				}
+			}
+			else flag4=false;
+		}
+
+		
+		return (flag1||flag2||flag3||flag4);
+			
+		}
+
+//We can also find the resultof game in O(1) by storing sum of each moves as +1/-1
+//if our abs(sum) hits n then this means that current player won the game 
+
+	public int move2(int player,int row,int col) throws IllegalArgumentException{
+		if(row<0||col<0||row>=n||col>=n){
+			throw new IllegalArgumentException("Move out of boundary");
+		}
+		else if(board[row][col]!=0){
+			throw new IllegalArgumentException("Cell is already occupied");
+		}
+		else if(player!=0 || player!=1){
+			throw new IllegalArgumentException("Player invalid");
+		}
+		else{
+			board[row][col]=(player==1)?1:-1;
+			rowsum[row]+=(player==1)?1:-1;
+			colsum[col]+=(player==1)?1:-1;
+			if(row==col){
+				diagsum+=(player==1)?1:-1;
+			}
+			if(row+col==n-1){
+				revdiag+=(player==1)?1:-1;
+			}
+		}
+		if(CheckStatus2(player,row,col)){
+			return player;
+		}
+		else return 0;
+	}
+
+	public Boolean CheckStatus2(player,row,col){
+		if(rowsum[row]==abs(n)|| colsum[col]==abs(n)|| diagsum==abs(n)|| revdiag == abs(n)){
+		return true;
+		}
+		return false;
+	}
+
+	
+
+}
+
+class Player{
+	public String Name;
+	public String rating;
+	private String password;
+
+	public String getPassword(){
+		return this.password;
+	}
+	public String setPassword(String newPassword){
+		this.password = newPassword;
+	}
+}
+
+class GameStatus{
+	Boolean flag;
+	// if game ended flag = false;
+	// if game not ended flag = true;
+	String Winner;
+	String Loser;
+
+	public Boolean getFlag(){
+		return this.flag;
+	}
+
+	public Boolean setFlag(Boolean f){
+		this.flag = =f;
+	}
+
+	public String getWinner() throws IllegalArgumentException{
+		if(this.flag==true){
+			throw new IllegalArgumentException("Game is still running");
+		}
+		return this.Winner;
+	}
+	public String getLosser() throws IllegalArgumentException{
+		if(this.flag==true){
+			throw new IllegalArgumentException("Game is still running");
+		}
+		return this.Losser;
+	}
+	public void setWinner(String Name) throws IllegalArgumentException{
+		if(this.flag==true){
+			throw new IllegalArgumentException("Game is still running");
+		}
+		this.Winner = Name;
+	}
+	public void setLosser(String Name) throws IllegalArgumentException{
+		if(this.flag==true){
+			throw new IllegalArgumentException("Game is still running");
+		}
+		this.Losser = Name;
+	}
+	
+
+}
+
