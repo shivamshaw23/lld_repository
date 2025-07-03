@@ -1,0 +1,206 @@
+import java.util.*;
+
+public Enum CarStatus{
+	AVAILABLE,
+	RENTED,
+	MAINTAINANCE
+}
+
+public class Car {
+	private final String id;
+	private final String model;
+	private final String color;
+	private final String type;
+	private CarStatus status;
+
+	public Car(String id, String model, String type, String color) {
+       		 this.id = id;
+       		 this.model = model;
+        	 this.type = type;
+        	 this.status = CarStatus.AVAILABLE;
+		 this.color = color;
+    	}
+
+	  public String getId() { return id; }
+   	  public String getModel() { return model; }
+  	  public String getType() { return type; }
+  	  public CarStatus getStatus() { return status; }
+   	  public void setStatus(CarStatus status) { this.status = status; }
+	  public String getColor(){ return color;}
+}
+
+
+public class Customer {
+    private final String id;
+    private final String name;
+    private final String email;
+
+    public Customer(String id, String name, String email) {
+        this.id = id;
+        this.name = name;
+        this.email = email;
+    }
+
+    public String getId() { return id; }
+    public String getName() { return name; }
+    public String getEmail() { return email; }
+}
+
+public class Reservation {
+    private final String reservationId;
+    private final Customer customer;
+    private final Car car;
+    private final LocalDate startDate;
+    private final LocalDate endDate;
+    private boolean confirmed;
+
+    public Reservation(String reservationId, Customer customer, Car car,
+                       LocalDate startDate, LocalDate endDate) {
+        this.reservationId = reservationId;
+        this.customer = customer;
+        this.car = car;
+        this.startDate = startDate;
+        this.endDate = endDate;
+        this.confirmed = false;
+    }
+
+    public String getReservationId() { return reservationId; }
+    public Customer getCustomer() { return customer; }
+    public Car getCar() { return car; }
+    public LocalDate getStartDate() { return startDate; }
+    public LocalDate getEndDate() { return endDate; }
+    public boolean isConfirmed() { return confirmed; }
+    public void confirm() { this.confirmed = true; }
+}
+
+public class Rental {
+    private final String rentalId;
+    private final Reservation reservation;
+    private LocalDate actualReturnDate;
+
+    public Rental(String rentalId, Reservation reservation) {
+        this.rentalId = rentalId;
+        this.reservation = reservation;
+    }
+
+    public String getRentalId() { return rentalId; }
+    public Reservation getReservation() { return reservation; }
+    public LocalDate getActualReturnDate() { return actualReturnDate; }
+    public void setActualReturnDate(LocalDate date) { this.actualReturnDate = date; }
+}
+
+public class Inventory {
+    private final Map<String, Car> cars = new HashMap<>();
+
+    public void addCar(Car car) {
+        cars.put(car.getId(), car);
+    }
+
+    public List<Car> searchAvailable(String type) {
+        List<Car> result = new ArrayList<>();
+        for (Car car : cars.values()) {
+            if (car.getType().equalsIgnoreCase(type)
+             && car.getStatus() == CarStatus.AVAILABLE) {
+                result.add(car);
+            }
+        }
+        return result;
+    }
+
+    public Car getById(String carId) {
+        return cars.get(carId);
+    }
+}
+
+
+
+public interface PaymentProcessor {
+    boolean charge(Customer customer, double amount);
+}
+
+public class MockPaymentProcessor implements PaymentProcessor {
+    public boolean charge(Customer customer, double amount) {
+        // Integrate with real payment gateway in production
+        System.out.println("Charging " + customer.getName() + " amount: " + amount);
+        return true;
+    }
+}
+
+
+
+
+public class CarRentalService {
+    private final Inventory inventory;
+    private final PaymentProcessor paymentProcessor;
+    private final Map<String, Reservation> reservations = new HashMap<>();
+    private final Map<String, Rental> rentals = new HashMap<>();
+
+    public CarRentalService(Inventory inventory, PaymentProcessor paymentProcessor) {
+        this.inventory = inventory;
+        this.paymentProcessor = paymentProcessor;
+    }
+
+    // Reserve a car
+    public Reservation reserveCar(Customer customer, String carId,
+                                  LocalDate start, LocalDate end) {
+        Car car = inventory.getById(carId);
+        if (car == null || car.getStatus() != CarStatus.AVAILABLE) {
+            throw new IllegalStateException("Car not available");
+        }
+        String resId = UUID.randomUUID().toString();
+        Reservation res = new Reservation(resId, customer, car, start, end);
+        reservations.put(resId, res);
+        return res;
+    }
+
+    // Confirm reservation and charge
+    public boolean confirmReservation(String reservationId) {
+        Reservation res = reservations.get(reservationId);
+        if (res == null || res.isConfirmed()) {
+            throw new IllegalStateException("Invalid reservation");
+        }
+        long days = res.getStartDate().until(res.getEndDate()).getDays();
+        double amount = days * 100; // rate per day
+        boolean paid = paymentProcessor.charge(res.getCustomer(), amount);
+        if (paid) {
+            res.confirm();
+            res.getCar().setStatus(CarStatus.RENTED);
+        }
+        return paid;
+    }
+
+    // Return a car
+    public void returnCar(String reservationId, LocalDate returnDate) {
+        Reservation res = reservations.get(reservationId);
+        if (res == null || !res.isConfirmed()) {
+            throw new IllegalStateException("No active rental");
+        }
+        String rentalId = UUID.randomUUID().toString();
+        Rental rental = new Rental(rentalId, res);
+        rental.setActualReturnDate(returnDate);
+        rentals.put(rentalId, rental);
+        res.getCar().setStatus(CarStatus.AVAILABLE);
+    }
+}
+
+class Main {
+    public static void main(String[] args) {
+        Inventory inventory = new Inventory();
+        inventory.addCar(new Car("C1", "Toyota Camry", "Sedan"));
+        inventory.addCar(new Car("C2", "Honda CRV", "SUV"));
+
+        PaymentProcessor payment = new MockPaymentProcessor();
+        CarRentalService service = new CarRentalService(inventory, payment);
+
+        Customer alice = new Customer("U1", "Alice", "alice@example.com");
+        Reservation res = service.reserveCar(alice, "C1", LocalDate.now(), LocalDate.now().plusDays(3));
+        service.confirmReservation(res.getReservationId());
+        service.returnCar(res.getReservationId(), LocalDate.now().plusDays(3));
+    }
+}
+
+
+
+
+
+
