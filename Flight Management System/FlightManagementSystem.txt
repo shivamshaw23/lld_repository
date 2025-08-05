@@ -1,113 +1,480 @@
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
+import java.util.*;
+import java.util.stream.Collectors;
 
-public class Flight {
+enum SeatClass {
+    ECONOMY(0.0, "Standard seating"),
+    PREMIUM_ECONOMY(150.0, "Extra legroom and amenities"),
+    BUSINESS(500.0, "Business class comfort"),
+    FIRST(1200.0, "Luxury first class");
+    
+    private final double priceMultiplier;
+    private final String description;
+    
+    SeatClass(double priceMultiplier, String description) {
+        this.priceMultiplier = priceMultiplier;
+        this.description = description;
+    }
+    
+    public double getPriceMultiplier() { return priceMultiplier; }
+    public String getDescription() { return description; }
+}
+
+enum FlightStatus {
+    SCHEDULED, BOARDING, DEPARTED, ARRIVED, DELAYED, CANCELLED
+}
+
+enum MealType {
+    NONE("No meal service"),
+    VEGETARIAN("Vegetarian meal"),
+    NON_VEGETARIAN("Non-vegetarian meal"),
+    VEGAN("Vegan meal"),
+    KOSHER("Kosher meal"),
+    HALAL("Halal meal");
+    
+    private final String description;
+    
+    MealType(String description) {
+        this.description = description;
+    }
+    
+    public String getDescription() { return description; }
+}
+
+class Seat {
+    private final String seatNumber;
+    private final SeatClass seatClass;
+    private boolean occupied;
+    private String passengerId;
+
+    public Seat(String seatNumber, SeatClass seatClass) {
+        this.seatNumber = seatNumber;
+        this.seatClass = seatClass;
+        this.occupied = false;
+    }
+
+    public String getSeatNumber() { return seatNumber; }
+    public SeatClass getSeatClass() { return seatClass; }
+    public boolean isOccupied() { return occupied; }
+    public String getPassengerId() { return passengerId; }
+    
+    public void occupy(String passengerId) {
+        this.occupied = true;
+        this.passengerId = passengerId;
+    }
+    
+    public void free() {
+        this.occupied = false;
+        this.passengerId = null;
+    }
+    
+    @Override
+    public String toString() {
+        return String.format("%s (%s) - %s", seatNumber, seatClass, 
+                           occupied ? "Occupied" : "Available");
+    }
+}
+
+class Aircraft {
+    private final String aircraftId;
+    private final String model;
+    private final Map<String, Seat> seats;
+    private final Map<SeatClass, Integer> seatConfiguration;
+
+    public Aircraft(String aircraftId, String model) {
+        this.aircraftId = aircraftId;
+        this.model = model;
+        this.seats = new HashMap<>();
+        this.seatConfiguration = new HashMap<>();
+        initializeSeats();
+    }
+
+    private void initializeSeats() {
+        // Initialize seat configuration for a typical aircraft
+        seatConfiguration.put(SeatClass.FIRST, 8);
+        seatConfiguration.put(SeatClass.BUSINESS, 20);
+        seatConfiguration.put(SeatClass.PREMIUM_ECONOMY, 30);
+        seatConfiguration.put(SeatClass.ECONOMY, 150);
+        
+        // Create seats
+        int seatCounter = 1;
+        for (SeatClass seatClass : SeatClass.values()) {
+            int count = seatConfiguration.get(seatClass);
+            for (int i = 0; i < count; i++) {
+                String seatNumber = String.format("%d%c", seatCounter / 6 + 1, 
+                                                 (char)('A' + (seatCounter % 6)));
+                seats.put(seatNumber, new Seat(seatNumber, seatClass));
+                seatCounter++;
+            }
+        }
+    }
+
+    public List<Seat> getAvailableSeats(SeatClass seatClass) {
+        return seats.values().stream()
+                   .filter(seat -> !seat.isOccupied() && seat.getSeatClass() == seatClass)
+                   .collect(Collectors.toList());
+    }
+    
+    public Seat getSeat(String seatNumber) {
+        return seats.get(seatNumber);
+    }
+    
+    public int getTotalCapacity() {
+        return seats.size();
+    }
+    
+    public int getAvailableSeats() {
+        return (int) seats.values().stream().filter(seat -> !seat.isOccupied()).count();
+    }
+    
+    public String getAircraftId() { return aircraftId; }
+    public String getModel() { return model; }
+}
+
+class Flight {
     private final String flightNumber;
+    private final String airline;
     private final String origin;
     private final String destination;
     private final LocalDateTime departure;
     private final LocalDateTime arrival;
-    private final int capacity;
-    private int seatsAvailable;
+    private final Aircraft aircraft;
+    private final double basePrice;
+    private FlightStatus status;
+    private String gate;
 
-    public Flight(String flightNumber, String origin, String destination,
-                  LocalDateTime departure, LocalDateTime arrival, int capacity) {
+    public Flight(String flightNumber, String airline, String origin, String destination,
+                  LocalDateTime departure, LocalDateTime arrival, Aircraft aircraft, 
+                  double basePrice) {
         this.flightNumber = flightNumber;
+        this.airline = airline;
         this.origin = origin;
         this.destination = destination;
         this.departure = departure;
         this.arrival = arrival;
-        this.capacity = capacity;
-        this.seatsAvailable = capacity;
+        this.aircraft = aircraft;
+        this.basePrice = basePrice;
+        this.status = FlightStatus.SCHEDULED;
     }
 
-   public String getFlightNumber() { return flightNumber; }
-    public String getOrigin()       { return origin; }
-    public String getDestination()  { return destination; }
+    public double calculatePrice(SeatClass seatClass) {
+        return basePrice + seatClass.getPriceMultiplier();
+    }
+    
+    public long getDurationMinutes() {
+        return ChronoUnit.MINUTES.between(departure, arrival);
+    }
+    
+    public boolean hasAvailableSeats(SeatClass seatClass) {
+        return !aircraft.getAvailableSeats(seatClass).isEmpty();
+    }
+
+    // Getters
+    public String getFlightNumber() { return flightNumber; }
+    public String getAirline() { return airline; }
+    public String getOrigin() { return origin; }
+    public String getDestination() { return destination; }
     public LocalDateTime getDeparture() { return departure; }
-    public LocalDateTime getArrival()   { return arrival; }
-    public int getCapacity()            { return capacity; }
-    public int getSeatsAvailable()      { return seatsAvailable; }
-
-    public boolean bookSeat() {
-        if (seatsAvailable > 0) {
-            seatsAvailable--;
-            return true;
-        }
-        return false;
-    }
-
-
-  public boolean cancelSeat() {
-        if (seatsAvailable < capacity) {
-            seatsAvailable++;
-            return true;
-        }
-        return false;
-    }
+    public LocalDateTime getArrival() { return arrival; }
+    public Aircraft getAircraft() { return aircraft; }
+    public double getBasePrice() { return basePrice; }
+    public FlightStatus getStatus() { return status; }
+    public String getGate() { return gate; }
+    
+    public void setStatus(FlightStatus status) { this.status = status; }
+    public void setGate(String gate) { this.gate = gate; }
 
     @Override
     public String toString() {
-        return String.format("Flight[%s: %s → %s, departs %s, seats left %d/%d]",
-            flightNumber, origin, destination,
-            departure.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME),
-            seatsAvailable, capacity);
+        return String.format("%s %s: %s → %s, departs %s, arrives %s, from $%.2f (%s)",
+            airline, flightNumber, origin, destination,
+            departure.format(DateTimeFormatter.ofPattern("MMM dd HH:mm")),
+            arrival.format(DateTimeFormatter.ofPattern("MMM dd HH:mm")),
+            basePrice, status);
     }
 }
 
-
-public class Passenger {
+class Passenger {
     private final String passengerId;
-    private final String name;
-    private final String email;
+    private String firstName;
+    private String lastName;
+    private String email;
+    private String phone;
+    private String passportNumber;
+    private LocalDateTime passportExpiry;
+    private String frequentFlyerNumber;
+    private int loyaltyPoints;
 
-    public Passenger(String passengerId, String name, String email) {
+    public Passenger(String passengerId, String firstName, String lastName, 
+                    String email, String phone, String passportNumber, 
+                    LocalDateTime passportExpiry) {
         this.passengerId = passengerId;
-        this.name = name;
+        this.firstName = firstName;
+        this.lastName = lastName;
         this.email = email;
+        this.phone = phone;
+        this.passportNumber = passportNumber;
+        this.passportExpiry = passportExpiry;
+        this.loyaltyPoints = 0;
     }
 
+    public String getFullName() {
+        return firstName + " " + lastName;
+    }
+    
+    public boolean isPassportValid() {
+        return passportExpiry.isAfter(LocalDateTime.now().plusMonths(6));
+    }
+    
+    public void addLoyaltyPoints(int points) {
+        this.loyaltyPoints += points;
+    }
+
+    // Getters and setters
     public String getPassengerId() { return passengerId; }
-    public String getName()        { return name; }
-    public String getEmail()       { return email; }
+    public String getFirstName() { return firstName; }
+    public String getLastName() { return lastName; }
+    public String getEmail() { return email; }
+    public String getPhone() { return phone; }
+    public String getPassportNumber() { return passportNumber; }
+    public LocalDateTime getPassportExpiry() { return passportExpiry; }
+    public String getFrequentFlyerNumber() { return frequentFlyerNumber; }
+    public int getLoyaltyPoints() { return loyaltyPoints; }
+    
+    public void setFrequentFlyerNumber(String frequentFlyerNumber) {
+        this.frequentFlyerNumber = frequentFlyerNumber;
+    }
 
     @Override
     public String toString() {
-        return String.format("Passenger[%s: %s]", passengerId, name);
+        return String.format("Passenger[%s: %s]", passengerId, getFullName());
     }
 }
 
+class BookingPreferences {
+    private MealType mealPreference;
+    private boolean extraBaggage;
+    private boolean priorityBoarding;
+    private String specialRequests;
 
-public class Booking {
+    public BookingPreferences() {
+        this.mealPreference = MealType.NONE;
+        this.extraBaggage = false;
+        this.priorityBoarding = false;
+        this.specialRequests = "";
+    }
+
+    // Getters and setters
+    public MealType getMealPreference() { return mealPreference; }
+    public void setMealPreference(MealType mealPreference) { this.mealPreference = mealPreference; }
+    public boolean hasExtraBaggage() { return extraBaggage; }
+    public void setExtraBaggage(boolean extraBaggage) { this.extraBaggage = extraBaggage; }
+    public boolean hasPriorityBoarding() { return priorityBoarding; }
+    public void setPriorityBoarding(boolean priorityBoarding) { this.priorityBoarding = priorityBoarding; }
+    public String getSpecialRequests() { return specialRequests; }
+    public void setSpecialRequests(String specialRequests) { this.specialRequests = specialRequests; }
+    
+    public double calculateAdditionalCost() {
+        double cost = 0.0;
+        if (extraBaggage) cost += 50.0;
+        if (priorityBoarding) cost += 30.0;
+        return cost;
+    }
+}
+
+class Booking {
     private static int counter = 1;
     private final String bookingId;
     private final Flight flight;
     private final Passenger passenger;
+    private final Seat seat;
     private final LocalDateTime bookedAt;
+    private final BookingPreferences preferences;
+    private final double totalCost;
+    private boolean checkedIn;
+    private String boardingPass;
 
-    public Booking(Flight flight, Passenger passenger) {
-        this.bookingId  = "BKG" + (counter++);
-        this.flight     = flight;
-        this.passenger  = passenger;
-        this.bookedAt   = LocalDateTime.now();
+    public Booking(Flight flight, Passenger passenger, Seat seat, BookingPreferences preferences) {
+        this.bookingId = "BKG" + String.format("%06d", counter++);
+        this.flight = flight;
+        this.passenger = passenger;
+        this.seat = seat;
+        this.bookedAt = LocalDateTime.now();
+        this.preferences = preferences;
+        this.checkedIn = false;
+        
+        // Calculate total cost
+        double baseCost = flight.calculatePrice(seat.getSeatClass());
+        double additionalCost = preferences.calculateAdditionalCost();
+        this.totalCost = baseCost + additionalCost;
+        
+        // Occupy the seat
+        seat.occupy(passenger.getPassengerId());
     }
 
+    public void checkIn() {
+        if (checkedIn) {
+            throw new IllegalStateException("Already checked in");
+        }
+        this.checkedIn = true;
+        this.boardingPass = generateBoardingPass();
+    }
+    
+    private String generateBoardingPass() {
+        return String.format("BP-%s-%s-%s", bookingId, seat.getSeatNumber(), 
+                           flight.getFlightNumber());
+    }
+
+    // Getters
     public String getBookingId() { return bookingId; }
-    public Flight getFlight()    { return flight; }
+    public Flight getFlight() { return flight; }
     public Passenger getPassenger() { return passenger; }
+    public Seat getSeat() { return seat; }
     public LocalDateTime getBookedAt() { return bookedAt; }
+    public BookingPreferences getPreferences() { return preferences; }
+    public double getTotalCost() { return totalCost; }
+    public boolean isCheckedIn() { return checkedIn; }
+    public String getBoardingPass() { return boardingPass; }
 
     @Override
     public String toString() {
-        return String.format("Booking[%s] %s → %s for %s at %s",
-            bookingId,
-            flight.getOrigin(), flight.getDestination(),
-            passenger.getName(),
-            bookedAt.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME));
+        return String.format("Booking[%s] %s %s → %s for %s, Seat: %s, Cost: $%.2f",
+            bookingId, flight.getAirline(), flight.getOrigin(), flight.getDestination(),
+            passenger.getFullName(), seat.getSeatNumber(), totalCost);
     }
 }
 
+class FlightSearchCriteria {
+    private String origin;
+    private String destination;
+    private LocalDateTime departureDate;
+    private LocalDateTime returnDate;
+    private SeatClass preferredClass;
+    private Double maxPrice;
+    private String airline;
+    private boolean directFlightsOnly;
 
-public class FlightService {
+    // Builder pattern
+    public static class Builder {
+        private FlightSearchCriteria criteria = new FlightSearchCriteria();
+        
+        public Builder origin(String origin) {
+            criteria.origin = origin;
+            return this;
+        }
+        
+        public Builder destination(String destination) {
+            criteria.destination = destination;
+            return this;
+        }
+        
+        public Builder departureDate(LocalDateTime departureDate) {
+            criteria.departureDate = departureDate;
+            return this;
+        }
+        
+        public Builder returnDate(LocalDateTime returnDate) {
+            criteria.returnDate = returnDate;
+            return this;
+        }
+        
+        public Builder preferredClass(SeatClass preferredClass) {
+            criteria.preferredClass = preferredClass;
+            return this;
+        }
+        
+        public Builder maxPrice(double maxPrice) {
+            criteria.maxPrice = maxPrice;
+            return this;
+        }
+        
+        public Builder airline(String airline) {
+            criteria.airline = airline;
+            return this;
+        }
+        
+        public Builder directFlightsOnly(boolean directFlightsOnly) {
+            criteria.directFlightsOnly = directFlightsOnly;
+            return this;
+        }
+        
+        public FlightSearchCriteria build() {
+            return criteria;
+        }
+    }
+    
+    // Getters
+    public String getOrigin() { return origin; }
+    public String getDestination() { return destination; }
+    public LocalDateTime getDepartureDate() { return departureDate; }
+    public LocalDateTime getReturnDate() { return returnDate; }
+    public SeatClass getPreferredClass() { return preferredClass; }
+    public Double getMaxPrice() { return maxPrice; }
+    public String getAirline() { return airline; }
+    public boolean isDirectFlightsOnly() { return directFlightsOnly; }
+}
+
+interface PaymentProcessor {
+    PaymentResult processPayment(String customerId, double amount, String description);
+    boolean refund(String transactionId, double amount);
+}
+
+class PaymentResult {
+    private final boolean success;
+    private final String transactionId;
+    private final String message;
+
+    public PaymentResult(boolean success, String transactionId, String message) {
+        this.success = success;
+        this.transactionId = transactionId;
+        this.message = message;
+    }
+
+    public boolean isSuccess() { return success; }
+    public String getTransactionId() { return transactionId; }
+    public String getMessage() { return message; }
+}
+
+class MockPaymentProcessor implements PaymentProcessor {
+    private final Map<String, Double> transactions = new HashMap<>();
+
+    @Override
+    public PaymentResult processPayment(String customerId, double amount, String description) {
+        String transactionId = "TXN-" + UUID.randomUUID().toString().substring(0, 8);
+        transactions.put(transactionId, amount);
+        
+        System.out.printf("Payment processed: Customer %s charged $%.2f for %s%n", 
+                         customerId, amount, description);
+        
+        return new PaymentResult(true, transactionId, "Payment successful");
+    }
+
+    @Override
+    public boolean refund(String transactionId, double amount) {
+        if (transactions.containsKey(transactionId)) {
+            System.out.printf("Refund processed: $%.2f for transaction %s%n", 
+                             amount, transactionId);
+            return true;
+        }
+        return false;
+    }
+}
+
+class FlightManagementException extends Exception {
+    public FlightManagementException(String message) {
+        super(message);
+    }
+}
+
+class FlightService {
     private final Map<String, Flight> flights = new HashMap<>();
+    private final Map<String, Aircraft> aircraft = new HashMap<>();
+
+    public void addAircraft(Aircraft aircraft) {
+        this.aircraft.put(aircraft.getAircraftId(), aircraft);
+    }
 
     public void addFlight(Flight flight) {
         flights.put(flight.getFlightNumber(), flight);
@@ -117,77 +484,290 @@ public class FlightService {
         return Optional.ofNullable(flights.get(flightNumber));
     }
 
-    public List<Flight> search(String origin, String destination) {
+    public List<Flight> searchFlights(FlightSearchCriteria criteria) {
         return flights.values().stream()
-            .filter(f -> f.getOrigin().equalsIgnoreCase(origin)
-                      && f.getDestination().equalsIgnoreCase(destination))
+            .filter(f -> criteria.getOrigin() == null || 
+                        f.getOrigin().equalsIgnoreCase(criteria.getOrigin()))
+            .filter(f -> criteria.getDestination() == null || 
+                        f.getDestination().equalsIgnoreCase(criteria.getDestination()))
+            .filter(f -> criteria.getDepartureDate() == null || 
+                        f.getDeparture().toLocalDate().equals(criteria.getDepartureDate().toLocalDate()))
+            .filter(f -> criteria.getAirline() == null || 
+                        f.getAirline().equalsIgnoreCase(criteria.getAirline()))
+            .filter(f -> criteria.getMaxPrice() == null || 
+                        f.getBasePrice() <= criteria.getMaxPrice())
+            .filter(f -> criteria.getPreferredClass() == null || 
+                        f.hasAvailableSeats(criteria.getPreferredClass()))
+            .filter(f -> f.getStatus() == FlightStatus.SCHEDULED)
+            .sorted(Comparator.comparing(Flight::getDeparture))
             .collect(Collectors.toList());
+    }
+    
+    public Map<String, Integer> getFlightStatistics() {
+        Map<String, Integer> stats = new HashMap<>();
+        stats.put("Total Flights", flights.size());
+        stats.put("Scheduled", (int) flights.values().stream()
+                 .filter(f -> f.getStatus() == FlightStatus.SCHEDULED).count());
+        stats.put("Departed", (int) flights.values().stream()
+                 .filter(f -> f.getStatus() == FlightStatus.DEPARTED).count());
+        return stats;
     }
 }
 
-public class BookingService {
+class BookingService {
     private final Map<String, Booking> bookings = new HashMap<>();
+    private final PaymentProcessor paymentProcessor;
 
-    public Booking book(Flight flight, Passenger passenger) {
-        if (!flight.bookSeat()) {
-            throw new IllegalStateException("No seats available on flight " + flight.getFlightNumber());
+    public BookingService(PaymentProcessor paymentProcessor) {
+        this.paymentProcessor = paymentProcessor;
+    }
+
+    public Booking createBooking(Flight flight, Passenger passenger, String seatNumber, 
+                                BookingPreferences preferences) throws FlightManagementException {
+        
+        if (!passenger.isPassportValid()) {
+            throw new FlightManagementException("Passport expires within 6 months");
         }
-        Booking booking = new Booking(flight, passenger);
+        
+        Seat seat = flight.getAircraft().getSeat(seatNumber);
+        if (seat == null) {
+            throw new FlightManagementException("Seat not found: " + seatNumber);
+        }
+        
+        if (seat.isOccupied()) {
+            throw new FlightManagementException("Seat already occupied: " + seatNumber);
+        }
+
+        Booking booking = new Booking(flight, passenger, seat, preferences);
+        
+        // Process payment
+        PaymentResult paymentResult = paymentProcessor.processPayment(
+            passenger.getPassengerId(), 
+            booking.getTotalCost(),
+            "Flight booking: " + flight.getFlightNumber()
+        );
+        
+        if (!paymentResult.isSuccess()) {
+            seat.free(); // Free the seat if payment fails
+            throw new FlightManagementException("Payment failed: " + paymentResult.getMessage());
+        }
+        
         bookings.put(booking.getBookingId(), booking);
+        
+        // Award loyalty points
+        int points = (int) (booking.getTotalCost() / 10);
+        passenger.addLoyaltyPoints(points);
+        
+        System.out.printf("Booking created successfully: %s%n", booking.getBookingId());
+        System.out.printf("Loyalty points earned: %d (Total: %d)%n", 
+                         points, passenger.getLoyaltyPoints());
+        
         return booking;
     }
 
-public boolean cancel(String bookingId) {
+    public boolean cancelBooking(String bookingId) throws FlightManagementException {
         Booking booking = bookings.remove(bookingId);
-        if (booking != null) {
-            return booking.getFlight().cancelSeat();
+        if (booking == null) {
+            throw new FlightManagementException("Booking not found: " + bookingId);
         }
-        return false;
+        
+        // Free the seat
+        booking.getSeat().free();
+        
+        // Process refund (with cancellation fee)
+        double refundAmount = booking.getTotalCost() * 0.8; // 20% cancellation fee
+        boolean refunded = paymentProcessor.refund("dummy-txn", refundAmount);
+        
+        System.out.printf("Booking cancelled: %s, Refund: $%.2f%n", 
+                         bookingId, refundAmount);
+        
+        return refunded;
+    }
+    
+    public void checkInPassenger(String bookingId) throws FlightManagementException {
+        Booking booking = bookings.get(bookingId);
+        if (booking == null) {
+            throw new FlightManagementException("Booking not found: " + bookingId);
+        }
+        
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime departure = booking.getFlight().getDeparture();
+        
+        if (now.isAfter(departure.minusHours(24))) {
+            throw new FlightManagementException("Check-in window closed");
+        }
+        
+        booking.checkIn();
+        System.out.printf("Check-in successful for %s. Boarding pass: %s%n",
+                         booking.getPassenger().getFullName(), booking.getBoardingPass());
     }
 
-    public List<Booking> listBookings() {
+    public List<Booking> getBookingsByPassenger(String passengerId) {
+        return bookings.values().stream()
+                      .filter(b -> b.getPassenger().getPassengerId().equals(passengerId))
+                      .collect(Collectors.toList());
+    }
+
+    public List<Booking> getAllBookings() {
         return new ArrayList<>(bookings.values());
+    }
+    
+    public Optional<Booking> getBooking(String bookingId) {
+        return Optional.ofNullable(bookings.get(bookingId));
     }
 }
 
-public class FlightManagementApp {
+public class FlightManagementSystem {
+    private final FlightService flightService;
+    private final BookingService bookingService;
+    private final Map<String, Passenger> passengers;
+
+    public FlightManagementSystem() {
+        this.flightService = new FlightService();
+        this.bookingService = new BookingService(new MockPaymentProcessor());
+        this.passengers = new HashMap<>();
+        initializeSystem();
+    }
+
+    private void initializeSystem() {
+        // Add sample aircraft
+        Aircraft boeing737 = new Aircraft("B737-001", "Boeing 737-800");
+        Aircraft airbusA320 = new Aircraft("A320-001", "Airbus A320");
+        
+        flightService.addAircraft(boeing737);
+        flightService.addAircraft(airbusA320);
+
+        // Add sample flights
+        flightService.addFlight(new Flight(
+            "AI101", "Air India", "Delhi", "Mumbai",
+            LocalDateTime.of(2025, 2, 15, 9, 0),
+            LocalDateTime.of(2025, 2, 15, 11, 30),
+            boeing737, 299.99
+        ));
+        
+        flightService.addFlight(new Flight(
+            "6E202", "IndiGo", "Mumbai", "Bangalore",
+            LocalDateTime.of(2025, 2, 16, 14, 0),
+            LocalDateTime.of(2025, 2, 16, 16, 45),
+            airbusA320, 199.99
+        ));
+        
+        flightService.addFlight(new Flight(
+            "SG301", "SpiceJet", "Delhi", "Bangalore",
+            LocalDateTime.of(2025, 2, 17, 6, 30),
+            LocalDateTime.of(2025, 2, 17, 9, 15),
+            boeing737, 249.99
+        ));
+
+        // Add sample passengers
+        passengers.put("P001", new Passenger("P001", "Rajesh", "Kumar", 
+                                           "rajesh@email.com", "+91-9876543210", 
+                                           "A12345678", LocalDateTime.now().plusYears(3)));
+        passengers.put("P002", new Passenger("P002", "Priya", "Sharma", 
+                                           "priya@email.com", "+91-9876543211", 
+                                           "B98765432", LocalDateTime.now().plusYears(2)));
+    }
+
+    public void displayFlightSearch(FlightSearchCriteria criteria) {
+        System.out.println("\n=== Flight Search Results ===");
+        List<Flight> flights = flightService.searchFlights(criteria);
+        
+        if (flights.isEmpty()) {
+            System.out.println("No flights found matching your criteria.");
+            return;
+        }
+        
+        flights.forEach(System.out::println);
+        
+        System.out.println("\n=== Available Seat Classes ===");
+        for (Flight flight : flights) {
+            System.out.println("\nFlight " + flight.getFlightNumber() + ":");
+            for (SeatClass seatClass : SeatClass.values()) {
+                List<Seat> availableSeats = flight.getAircraft().getAvailableSeats(seatClass);
+                System.out.printf("  %s: %d seats available - $%.2f%n", 
+                                 seatClass, availableSeats.size(), 
+                                 flight.calculatePrice(seatClass));
+            }
+        }
+    }
+
+    public void displaySystemStatistics() {
+        System.out.println("\n=== System Statistics ===");
+        Map<String, Integer> stats = flightService.getFlightStatistics();
+        stats.forEach((key, value) -> System.out.println(key + ": " + value));
+        
+        System.out.println("Total Passengers: " + passengers.size());
+        System.out.println("Total Bookings: " + bookingService.getAllBookings().size());
+    }
+
     public static void main(String[] args) {
-        FlightService flightService = new FlightService();
-        BookingService bookingService = new BookingService();
+        try {
+            FlightManagementSystem fms = new FlightManagementSystem();
+            
+            System.out.println("=== Flight Management System Demo ===");
+            
+            // Display system statistics
+            fms.displaySystemStatistics();
 
-        // create some flights
-        flightService.addFlight(new Flight(
-            "AI101", "Delhi", "Mumbai",
-            LocalDateTime.of(2025, 7, 15, 9, 0),
-            LocalDateTime.of(2025, 7, 15, 11, 30),
-            100));
-        flightService.addFlight(new Flight(
-            "AI202", "Mumbai", "Bangalore",
-            LocalDateTime.of(2025, 7, 16, 14, 0),
-            LocalDateTime.of(2025, 7, 16, 16, 45),
-            80));
+            // Search for flights
+            FlightSearchCriteria criteria = new FlightSearchCriteria.Builder()
+                .origin("Delhi")
+                .destination("Mumbai")
+                .departureDate(LocalDateTime.of(2025, 2, 15, 0, 0))
+                .preferredClass(SeatClass.ECONOMY)
+                .build();
+            
+            fms.displayFlightSearch(criteria);
 
-        // search flights
-        System.out.println("Flights Delhi→Mumbai:");
-        flightService.search("Delhi", "Mumbai")
-            .forEach(System.out::println);
-
-        // book a seat
-        Passenger p = new Passenger("P001", "Shivam Shaw", "shivam@example.com");
-        Flight flight = flightService.findByNumber("AI101").orElseThrow();
-        Booking booking = bookingService.book(flight, p);
-        System.out.println("\nNew booking:");
-        System.out.println(booking);
-
-        // list bookings
-        System.out.println("\nAll bookings:");
-        bookingService.listBookings()
-            .forEach(System.out::println);
-
-        // cancel
-        boolean cancelled = bookingService.cancel(booking.getBookingId());
-        System.out.println("\nCanceled booking " + booking.getBookingId() + ": " + cancelled);
-        System.out.println("Seats left on flight: " + flight.getSeatsAvailable());
+            // Make a booking
+            System.out.println("\n=== Making a Booking ===");
+            
+            Passenger passenger = fms.passengers.get("P001");
+            Optional<Flight> flightOpt = fms.flightService.findByNumber("AI101");
+            
+            if (flightOpt.isPresent()) {
+                Flight flight = flightOpt.get();
+                
+                // Set up booking preferences
+                BookingPreferences preferences = new BookingPreferences();
+                preferences.setMealPreference(MealType.VEGETARIAN);
+                preferences.setExtraBaggage(true);
+                preferences.setPriorityBoarding(false);
+                preferences.setSpecialRequests("Window seat preferred");
+                
+                // Select an available economy seat
+                List<Seat> economySeats = flight.getAircraft().getAvailableSeats(SeatClass.ECONOMY);
+                if (!economySeats.isEmpty()) {
+                    String selectedSeat = economySeats.get(0).getSeatNumber();
+                    
+                    Booking booking = fms.bookingService.createBooking(
+                        flight, passenger, selectedSeat, preferences
+                    );
+                    
+                    System.out.println("\nBooking Details:");
+                    System.out.println(booking);
+                    System.out.println("Meal Preference: " + preferences.getMealPreference().getDescription());
+                    System.out.println("Extra Baggage: " + preferences.hasExtraBaggage());
+                    System.out.println("Special Requests: " + preferences.getSpecialRequests());
+                    
+                    // Check-in
+                    System.out.println("\n=== Check-in Process ===");
+                    fms.bookingService.checkInPassenger(booking.getBookingId());
+                    
+                    // Display passenger's bookings
+                    System.out.println("\n=== Passenger Booking History ===");
+                    List<Booking> passengerBookings = fms.bookingService
+                        .getBookingsByPassenger(passenger.getPassengerId());
+                    passengerBookings.forEach(System.out::println);
+                }
+            }
+            
+            // Final statistics
+            fms.displaySystemStatistics();
+            
+        } catch (FlightManagementException e) {
+            System.err.println("Flight Management Error: " + e.getMessage());
+        }
     }
 }
 

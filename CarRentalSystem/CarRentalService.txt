@@ -1,201 +1,634 @@
 import java.util.*;
+import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
 
-public Enum CarStatus{
-	AVAILABLE,
-	RENTED,
-	MAINTAINANCE
+enum CarStatus {
+    AVAILABLE,
+    RENTED,
+    MAINTENANCE,
+    OUT_OF_SERVICE
 }
 
-public class Car {
-	private final String id;
-	private final String model;
-	private final String color;
-	private final String type;
-	private CarStatus status;
-
-	public Car(String id, String model, String type, String color) {
-       		 this.id = id;
-       		 this.model = model;
-        	 this.type = type;
-        	 this.status = CarStatus.AVAILABLE;
-		 this.color = color;
-    	}
-
-	  public String getId() { return id; }
-   	  public String getModel() { return model; }
-  	  public String getType() { return type; }
-  	  public CarStatus getStatus() { return status; }
-   	  public void setStatus(CarStatus status) { this.status = status; }
-	  public String getColor(){ return color;}
+enum CarCategory {
+    ECONOMY(45.0, "Compact, fuel-efficient"),
+    COMPACT(55.0, "Small, easy to park"),
+    INTERMEDIATE(65.0, "Mid-size comfort"),
+    STANDARD(75.0, "Full-size sedan"),
+    FULL_SIZE(85.0, "Spacious sedan"),
+    PREMIUM(120.0, "Luxury vehicle"),
+    SUV(95.0, "Sport utility vehicle"),
+    MINIVAN(90.0, "Family van"),
+    CONVERTIBLE(140.0, "Open-top sports car"),
+    LUXURY(200.0, "High-end luxury");
+    
+    private final double dailyRate;
+    private final String description;
+    
+    CarCategory(double dailyRate, String description) {
+        this.dailyRate = dailyRate;
+        this.description = description;
+    }
+    
+    public double getDailyRate() { return dailyRate; }
+    public String getDescription() { return description; }
 }
 
-
-public class Customer {
+class Car {
     private final String id;
-    private final String name;
-    private final String email;
+    private final String model;
+    private final String brand;
+    private final CarCategory category;
+    private final String color;
+    private final int year;
+    private final String licensePlate;
+    private CarStatus status;
+    private double mileage;
+    private String location;
 
-    public Customer(String id, String name, String email) {
+    public Car(String id, String brand, String model, CarCategory category, 
+               String color, int year, String licensePlate, String location) {
+        this.id = id;
+        this.brand = brand;
+        this.model = model;
+        this.category = category;
+        this.color = color;
+        this.year = year;
+        this.licensePlate = licensePlate;
+        this.status = CarStatus.AVAILABLE;
+        this.mileage = 0.0;
+        this.location = location;
+    }
+
+    // Getters
+    public String getId() { return id; }
+    public String getModel() { return model; }
+    public String getBrand() { return brand; }
+    public CarCategory getCategory() { return category; }
+    public CarStatus getStatus() { return status; }
+    public String getColor() { return color; }
+    public int getYear() { return year; }
+    public String getLicensePlate() { return licensePlate; }
+    public double getMileage() { return mileage; }
+    public String getLocation() { return location; }
+    
+    // Setters
+    public void setStatus(CarStatus status) { this.status = status; }
+    public void setMileage(double mileage) { this.mileage = mileage; }
+    public void setLocation(String location) { this.location = location; }
+    
+    @Override
+    public String toString() {
+        return String.format("%s %s %s (%d) - %s - $%.2f/day - %s", 
+                           brand, model, color, year, category, 
+                           category.getDailyRate(), status);
+    }
+}
+
+class Customer {
+    private final String id;
+    private String name;
+    private String email;
+    private String phone;
+    private String address;
+    private String licenseNumber;
+    private LocalDate licenseExpiry;
+    private CustomerTier tier;
+    private int loyaltyPoints;
+    private List<String> rentalHistory;
+
+    public Customer(String id, String name, String email, String phone, 
+                   String licenseNumber, LocalDate licenseExpiry) {
         this.id = id;
         this.name = name;
         this.email = email;
+        this.phone = phone;
+        this.licenseNumber = licenseNumber;
+        this.licenseExpiry = licenseExpiry;
+        this.tier = CustomerTier.BRONZE;
+        this.loyaltyPoints = 0;
+        this.rentalHistory = new ArrayList<>();
     }
 
+    // Getters and setters
     public String getId() { return id; }
     public String getName() { return name; }
     public String getEmail() { return email; }
+    public String getPhone() { return phone; }
+    public String getLicenseNumber() { return licenseNumber; }
+    public LocalDate getLicenseExpiry() { return licenseExpiry; }
+    public CustomerTier getTier() { return tier; }
+    public int getLoyaltyPoints() { return loyaltyPoints; }
+    public List<String> getRentalHistory() { return rentalHistory; }
+    
+    public void setName(String name) { this.name = name; }
+    public void setEmail(String email) { this.email = email; }
+    public void setPhone(String phone) { this.phone = phone; }
+    public void addLoyaltyPoints(int points) { this.loyaltyPoints += points; }
+    public void updateTier() {
+        if (loyaltyPoints >= 1000) tier = CustomerTier.GOLD;
+        else if (loyaltyPoints >= 500) tier = CustomerTier.SILVER;
+    }
+    
+    public boolean isLicenseValid() {
+        return licenseExpiry.isAfter(LocalDate.now());
+    }
 }
 
-public class Reservation {
+enum CustomerTier {
+    BRONZE(0.0),
+    SILVER(0.05),
+    GOLD(0.10);
+    
+    private final double discountRate;
+    
+    CustomerTier(double discountRate) {
+        this.discountRate = discountRate;
+    }
+    
+    public double getDiscountRate() { return discountRate; }
+}
+
+class Reservation {
     private final String reservationId;
     private final Customer customer;
     private final Car car;
     private final LocalDate startDate;
     private final LocalDate endDate;
+    private final LocalDate createdAt;
     private boolean confirmed;
+    private double totalCost;
+    private String pickupLocation;
+    private String dropoffLocation;
 
     public Reservation(String reservationId, Customer customer, Car car,
-                       LocalDate startDate, LocalDate endDate) {
+                       LocalDate startDate, LocalDate endDate, 
+                       String pickupLocation, String dropoffLocation) {
         this.reservationId = reservationId;
         this.customer = customer;
         this.car = car;
         this.startDate = startDate;
         this.endDate = endDate;
+        this.createdAt = LocalDate.now();
         this.confirmed = false;
+        this.pickupLocation = pickupLocation;
+        this.dropoffLocation = dropoffLocation;
+        calculateTotalCost();
     }
 
+    private void calculateTotalCost() {
+        long days = ChronoUnit.DAYS.between(startDate, endDate);
+        if (days == 0) days = 1; // Minimum 1 day
+        
+        double baseCost = days * car.getCategory().getDailyRate();
+        double discount = baseCost * customer.getTier().getDiscountRate();
+        this.totalCost = baseCost - discount;
+    }
+
+    // Getters
     public String getReservationId() { return reservationId; }
     public Customer getCustomer() { return customer; }
     public Car getCar() { return car; }
     public LocalDate getStartDate() { return startDate; }
     public LocalDate getEndDate() { return endDate; }
     public boolean isConfirmed() { return confirmed; }
+    public double getTotalCost() { return totalCost; }
+    public String getPickupLocation() { return pickupLocation; }
+    public String getDropoffLocation() { return dropoffLocation; }
+    
     public void confirm() { this.confirmed = true; }
+    
+    public boolean isActive() {
+        return confirmed && LocalDate.now().isBefore(endDate);
+    }
 }
 
-public class Rental {
+class Rental {
     private final String rentalId;
     private final Reservation reservation;
     private LocalDate actualReturnDate;
+    private double actualMileage;
+    private double lateFee;
+    private double damageFee;
+    private boolean returned;
 
     public Rental(String rentalId, Reservation reservation) {
         this.rentalId = rentalId;
         this.reservation = reservation;
+        this.returned = false;
+        this.lateFee = 0.0;
+        this.damageFee = 0.0;
     }
 
+    public void completeReturn(LocalDate returnDate, double mileage, 
+                              double damageFee) {
+        this.actualReturnDate = returnDate;
+        this.actualMileage = mileage;
+        this.damageFee = damageFee;
+        this.returned = true;
+        
+        // Calculate late fee
+        if (returnDate.isAfter(reservation.getEndDate())) {
+            long lateDays = ChronoUnit.DAYS.between(reservation.getEndDate(), returnDate);
+            this.lateFee = lateDays * reservation.getCar().getCategory().getDailyRate() * 1.5;
+        }
+    }
+
+    // Getters
     public String getRentalId() { return rentalId; }
     public Reservation getReservation() { return reservation; }
     public LocalDate getActualReturnDate() { return actualReturnDate; }
-    public void setActualReturnDate(LocalDate date) { this.actualReturnDate = date; }
+    public double getTotalCost() { 
+        return reservation.getTotalCost() + lateFee + damageFee; 
+    }
+    public boolean isReturned() { return returned; }
+    public double getLateFee() { return lateFee; }
+    public double getDamageFee() { return damageFee; }
 }
 
-public class Inventory {
+class SearchCriteria {
+    private CarCategory category;
+    private String location;
+    private LocalDate startDate;
+    private LocalDate endDate;
+    private Double maxDailyRate;
+    private String brand;
+    private Integer minYear;
+
+    // Builder pattern for flexible search
+    public static class Builder {
+        private SearchCriteria criteria = new SearchCriteria();
+        
+        public Builder category(CarCategory category) {
+            criteria.category = category;
+            return this;
+        }
+        
+        public Builder location(String location) {
+            criteria.location = location;
+            return this;
+        }
+        
+        public Builder dateRange(LocalDate start, LocalDate end) {
+            criteria.startDate = start;
+            criteria.endDate = end;
+            return this;
+        }
+        
+        public Builder maxRate(double maxRate) {
+            criteria.maxDailyRate = maxRate;
+            return this;
+        }
+        
+        public Builder brand(String brand) {
+            criteria.brand = brand;
+            return this;
+        }
+        
+        public Builder minYear(int year) {
+            criteria.minYear = year;
+            return this;
+        }
+        
+        public SearchCriteria build() {
+            return criteria;
+        }
+    }
+    
+    // Getters
+    public CarCategory getCategory() { return category; }
+    public String getLocation() { return location; }
+    public LocalDate getStartDate() { return startDate; }
+    public LocalDate getEndDate() { return endDate; }
+    public Double getMaxDailyRate() { return maxDailyRate; }
+    public String getBrand() { return brand; }
+    public Integer getMinYear() { return minYear; }
+}
+
+class Inventory {
     private final Map<String, Car> cars = new HashMap<>();
+    private final Map<String, List<String>> locationIndex = new HashMap<>();
 
     public void addCar(Car car) {
         cars.put(car.getId(), car);
+        locationIndex.computeIfAbsent(car.getLocation(), k -> new ArrayList<>())
+                    .add(car.getId());
     }
 
-    public List<Car> searchAvailable(String type) {
-        List<Car> result = new ArrayList<>();
-        for (Car car : cars.values()) {
-            if (car.getType().equalsIgnoreCase(type)
-             && car.getStatus() == CarStatus.AVAILABLE) {
-                result.add(car);
-            }
-        }
-        return result;
+    public List<Car> searchCars(SearchCriteria criteria) {
+        return cars.values().stream()
+                .filter(car -> car.getStatus() == CarStatus.AVAILABLE)
+                .filter(car -> criteria.getCategory() == null || 
+                              car.getCategory() == criteria.getCategory())
+                .filter(car -> criteria.getLocation() == null || 
+                              car.getLocation().equalsIgnoreCase(criteria.getLocation()))
+                .filter(car -> criteria.getMaxDailyRate() == null || 
+                              car.getCategory().getDailyRate() <= criteria.getMaxDailyRate())
+                .filter(car -> criteria.getBrand() == null || 
+                              car.getBrand().equalsIgnoreCase(criteria.getBrand()))
+                .filter(car -> criteria.getMinYear() == null || 
+                              car.getYear() >= criteria.getMinYear())
+                .sorted(Comparator.comparing(car -> car.getCategory().getDailyRate()))
+                .toList();
     }
 
     public Car getById(String carId) {
         return cars.get(carId);
     }
-}
-
-
-
-public interface PaymentProcessor {
-    boolean charge(Customer customer, double amount);
-}
-
-public class MockPaymentProcessor implements PaymentProcessor {
-    public boolean charge(Customer customer, double amount) {
-        // Integrate with real payment gateway in production
-        System.out.println("Charging " + customer.getName() + " amount: " + amount);
-        return true;
+    
+    public List<Car> getCarsByLocation(String location) {
+        return locationIndex.getOrDefault(location, new ArrayList<>())
+                           .stream()
+                           .map(cars::get)
+                           .filter(Objects::nonNull)
+                           .toList();
+    }
+    
+    public Map<CarCategory, Long> getAvailabilityByCategory() {
+        return cars.values().stream()
+                  .filter(car -> car.getStatus() == CarStatus.AVAILABLE)
+                  .collect(Collectors.groupingBy(Car::getCategory, Collectors.counting()));
     }
 }
 
+interface PaymentProcessor {
+    PaymentResult charge(Customer customer, double amount, String description);
+    boolean refund(String transactionId, double amount);
+}
 
+class PaymentResult {
+    private final boolean success;
+    private final String transactionId;
+    private final String message;
 
+    public PaymentResult(boolean success, String transactionId, String message) {
+        this.success = success;
+        this.transactionId = transactionId;
+        this.message = message;
+    }
+
+    public boolean isSuccess() { return success; }
+    public String getTransactionId() { return transactionId; }
+    public String getMessage() { return message; }
+}
+
+class MockPaymentProcessor implements PaymentProcessor {
+    private final Map<String, Double> transactions = new HashMap<>();
+
+    @Override
+    public PaymentResult charge(Customer customer, double amount, String description) {
+        String transactionId = "TXN-" + UUID.randomUUID().toString().substring(0, 8);
+        transactions.put(transactionId, amount);
+        
+        System.out.printf("Payment processed: %s charged $%.2f for %s%n", 
+                         customer.getName(), amount, description);
+        
+        return new PaymentResult(true, transactionId, "Payment successful");
+    }
+
+    @Override
+    public boolean refund(String transactionId, double amount) {
+        if (transactions.containsKey(transactionId)) {
+            System.out.printf("Refund processed: $%.2f for transaction %s%n", 
+                             amount, transactionId);
+            return true;
+        }
+        return false;
+    }
+}
+
+class CarRentalException extends Exception {
+    public CarRentalException(String message) {
+        super(message);
+    }
+}
 
 public class CarRentalService {
     private final Inventory inventory;
     private final PaymentProcessor paymentProcessor;
     private final Map<String, Reservation> reservations = new HashMap<>();
     private final Map<String, Rental> rentals = new HashMap<>();
+    private final Map<String, Customer> customers = new HashMap<>();
 
     public CarRentalService(Inventory inventory, PaymentProcessor paymentProcessor) {
         this.inventory = inventory;
         this.paymentProcessor = paymentProcessor;
     }
 
-    // Reserve a car
-    public Reservation reserveCar(Customer customer, String carId,
-                                  LocalDate start, LocalDate end) {
+    public void registerCustomer(Customer customer) throws CarRentalException {
+        if (!customer.isLicenseValid()) {
+            throw new CarRentalException("Invalid or expired driver's license");
+        }
+        customers.put(customer.getId(), customer);
+        System.out.println("Customer registered: " + customer.getName());
+    }
+
+    public List<Car> searchCars(SearchCriteria criteria) {
+        return inventory.searchCars(criteria);
+    }
+
+    public Reservation reserveCar(String customerId, String carId,
+                                 LocalDate startDate, LocalDate endDate,
+                                 String pickupLocation, String dropoffLocation) 
+                                 throws CarRentalException {
+        
+        Customer customer = customers.get(customerId);
+        if (customer == null) {
+            throw new CarRentalException("Customer not found");
+        }
+
         Car car = inventory.getById(carId);
         if (car == null || car.getStatus() != CarStatus.AVAILABLE) {
-            throw new IllegalStateException("Car not available");
+            throw new CarRentalException("Car not available");
         }
-        String resId = UUID.randomUUID().toString();
-        Reservation res = new Reservation(resId, customer, car, start, end);
-        reservations.put(resId, res);
-        return res;
+
+        if (startDate.isBefore(LocalDate.now()) || endDate.isBefore(startDate)) {
+            throw new CarRentalException("Invalid rental dates");
+        }
+
+        String reservationId = "RES-" + UUID.randomUUID().toString().substring(0, 8);
+        Reservation reservation = new Reservation(reservationId, customer, car, 
+                                                startDate, endDate, 
+                                                pickupLocation, dropoffLocation);
+        reservations.put(reservationId, reservation);
+        
+        System.out.printf("Reservation created: %s for %s from %s to %s%n",
+                         reservationId, car.getBrand() + " " + car.getModel(),
+                         startDate, endDate);
+        
+        return reservation;
     }
 
-    // Confirm reservation and charge
-    public boolean confirmReservation(String reservationId) {
-        Reservation res = reservations.get(reservationId);
-        if (res == null || res.isConfirmed()) {
-            throw new IllegalStateException("Invalid reservation");
+    public boolean confirmReservation(String reservationId) throws CarRentalException {
+        Reservation reservation = reservations.get(reservationId);
+        if (reservation == null) {
+            throw new CarRentalException("Reservation not found");
         }
-        long days = res.getStartDate().until(res.getEndDate()).getDays();
-        double amount = days * 100; // rate per day
-        boolean paid = paymentProcessor.charge(res.getCustomer(), amount);
-        if (paid) {
-            res.confirm();
-            res.getCar().setStatus(CarStatus.RENTED);
+        
+        if (reservation.isConfirmed()) {
+            throw new CarRentalException("Reservation already confirmed");
         }
-        return paid;
+
+        PaymentResult result = paymentProcessor.charge(
+            reservation.getCustomer(), 
+            reservation.getTotalCost(),
+            "Car rental: " + reservation.getCar().getBrand() + " " + reservation.getCar().getModel()
+        );
+
+        if (result.isSuccess()) {
+            reservation.confirm();
+            reservation.getCar().setStatus(CarStatus.RENTED);
+            
+            // Award loyalty points
+            Customer customer = reservation.getCustomer();
+            int points = (int) (reservation.getTotalCost() / 10);
+            customer.addLoyaltyPoints(points);
+            customer.updateTier();
+            customer.getRentalHistory().add(reservationId);
+            
+            System.out.printf("Reservation confirmed! Total cost: $%.2f%n", 
+                             reservation.getTotalCost());
+            System.out.printf("Loyalty points earned: %d (Total: %d)%n", 
+                             points, customer.getLoyaltyPoints());
+            return true;
+        }
+        
+        throw new CarRentalException("Payment failed: " + result.getMessage());
     }
 
-    // Return a car
-    public void returnCar(String reservationId, LocalDate returnDate) {
-        Reservation res = reservations.get(reservationId);
-        if (res == null || !res.isConfirmed()) {
-            throw new IllegalStateException("No active rental");
+    public Rental returnCar(String reservationId, LocalDate returnDate, 
+                           double mileage, double damageFee) throws CarRentalException {
+        
+        Reservation reservation = reservations.get(reservationId);
+        if (reservation == null || !reservation.isConfirmed()) {
+            throw new CarRentalException("No active rental found");
         }
-        String rentalId = UUID.randomUUID().toString();
-        Rental rental = new Rental(rentalId, res);
-        rental.setActualReturnDate(returnDate);
+
+        String rentalId = "RNT-" + UUID.randomUUID().toString().substring(0, 8);
+        Rental rental = new Rental(rentalId, reservation);
+        rental.completeReturn(returnDate, mileage, damageFee);
+        
         rentals.put(rentalId, rental);
-        res.getCar().setStatus(CarStatus.AVAILABLE);
+        reservation.getCar().setStatus(CarStatus.AVAILABLE);
+        reservation.getCar().setMileage(mileage);
+
+        // Process additional charges if any
+        double additionalCharges = rental.getLateFee() + rental.getDamageFee();
+        if (additionalCharges > 0) {
+            paymentProcessor.charge(reservation.getCustomer(), additionalCharges,
+                                  "Additional charges for rental " + rentalId);
+        }
+
+        System.out.printf("Car returned successfully. Rental ID: %s%n", rentalId);
+        System.out.printf("Total cost: $%.2f%n", rental.getTotalCost());
+        
+        if (rental.getLateFee() > 0) {
+            long lateDays = ChronoUnit.DAYS.between(reservation.getEndDate(), returnDate);
+            System.out.printf("Late fee: $%.2f (%d days late)%n", 
+                             rental.getLateFee(), lateDays);
+        }
+        
+        if (rental.getDamageFee() > 0) {
+            System.out.printf("Damage fee: $%.2f%n", rental.getDamageFee());
+        }
+
+        return rental;
     }
-}
 
-class Main {
+    public void displayInventoryStatus() {
+        System.out.println("\n=== Inventory Status ===");
+        Map<CarCategory, Long> availability = inventory.getAvailabilityByCategory();
+        
+        for (CarCategory category : CarCategory.values()) {
+            long count = availability.getOrDefault(category, 0L);
+            System.out.printf("%s: %d cars available - $%.2f/day%n", 
+                             category, count, category.getDailyRate());
+        }
+    }
+
+    public void displayCustomerInfo(String customerId) {
+        Customer customer = customers.get(customerId);
+        if (customer != null) {
+            System.out.println("\n=== Customer Information ===");
+            System.out.println("Name: " + customer.getName());
+            System.out.println("Email: " + customer.getEmail());
+            System.out.println("Tier: " + customer.getTier());
+            System.out.println("Loyalty Points: " + customer.getLoyaltyPoints());
+            System.out.println("Rental History: " + customer.getRentalHistory().size() + " rentals");
+        }
+    }
+
     public static void main(String[] args) {
-        Inventory inventory = new Inventory();
-        inventory.addCar(new Car("C1", "Toyota Camry", "Sedan"));
-        inventory.addCar(new Car("C2", "Honda CRV", "SUV"));
+        try {
+            // Initialize system
+            Inventory inventory = new Inventory();
+            PaymentProcessor paymentProcessor = new MockPaymentProcessor();
+            CarRentalService service = new CarRentalService(inventory, paymentProcessor);
 
-        PaymentProcessor payment = new MockPaymentProcessor();
-        CarRentalService service = new CarRentalService(inventory, payment);
+            // Add sample cars
+            inventory.addCar(new Car("C001", "Toyota", "Camry", CarCategory.STANDARD, 
+                                   "Silver", 2023, "ABC-123", "Downtown"));
+            inventory.addCar(new Car("C002", "Honda", "CR-V", CarCategory.SUV, 
+                                   "Blue", 2022, "DEF-456", "Airport"));
+            inventory.addCar(new Car("C003", "BMW", "X5", CarCategory.LUXURY, 
+                                   "Black", 2024, "GHI-789", "Downtown"));
+            inventory.addCar(new Car("C004", "Ford", "Focus", CarCategory.COMPACT, 
+                                   "Red", 2021, "JKL-012", "Airport"));
 
-        Customer alice = new Customer("U1", "Alice", "alice@example.com");
-        Reservation res = service.reserveCar(alice, "C1", LocalDate.now(), LocalDate.now().plusDays(3));
-        service.confirmReservation(res.getReservationId());
-        service.returnCar(res.getReservationId(), LocalDate.now().plusDays(3));
+            // Register customer
+            Customer alice = new Customer("CUST001", "Alice Johnson", "alice@email.com", 
+                                        "+1-555-0123", "DL123456789", 
+                                        LocalDate.now().plusYears(2));
+            service.registerCustomer(alice);
+
+            System.out.println("\n=== Car Rental System Demo ===");
+            
+            // Display inventory
+            service.displayInventoryStatus();
+
+            // Search for cars
+            System.out.println("\n=== Searching for SUVs ===");
+            SearchCriteria criteria = new SearchCriteria.Builder()
+                .category(CarCategory.SUV)
+                .location("Airport")
+                .build();
+            
+            List<Car> availableCars = service.searchCars(criteria);
+            availableCars.forEach(System.out::println);
+
+            // Make reservation
+            if (!availableCars.isEmpty()) {
+                Car selectedCar = availableCars.get(0);
+                LocalDate startDate = LocalDate.now().plusDays(1);
+                LocalDate endDate = LocalDate.now().plusDays(4);
+                
+                Reservation reservation = service.reserveCar(
+                    alice.getId(), selectedCar.getId(), 
+                    startDate, endDate, 
+                    "Airport", "Downtown"
+                );
+                
+                // Confirm reservation
+                service.confirmReservation(reservation.getReservationId());
+                
+                // Display customer info
+                service.displayCustomerInfo(alice.getId());
+                
+                // Simulate car return
+                System.out.println("\n=== Returning Car ===");
+                Rental rental = service.returnCar(
+                    reservation.getReservationId(), 
+                    endDate, 
+                    selectedCar.getMileage() + 150, 
+                    0.0 // No damage
+                );
+                
+                // Final inventory status
+                service.displayInventoryStatus();
+            }
+
+        } catch (CarRentalException e) {
+            System.err.println("Rental Error: " + e.getMessage());
+        }
     }
 }
 

@@ -1,213 +1,351 @@
-//player1 move = 1  ----  player2 move = -1;
-//empty cell = 0;
+import java.util.*;
 
-public class TicTacToe{
+public class TicTacToe {
+    private final int[][] board;
+    private final Player player1;
+    private final Player player2;
+    private Player currentPlayer;
+    private final int n;
+    private final Scanner scanner;
+    private GameStatus gameStatus;
 
-	private final int[][] board;
-	public player1;
-	public player2;
-	int rowsum[];
-	int colsum[];
-	int diagsum;
-	int revdiagsum;
+    public TicTacToe(int n) {
+        this.n = n;
+        this.board = new int[n][n];
+        this.player1 = new Player("Player 1", 'X', 1);
+        this.player2 = new Player("Player 2", 'O', -1);
+        this.currentPlayer = player1;
+        this.scanner = new Scanner(System.in);
+        this.gameStatus = new GameStatus();
+        initializeBoard();
+    }
 
-	int n;
-	public TicTacToe(final int n){
-		this.n = n;
-		board = new int[n][n];
-		player1; = new Player();
-		player2; = new Player();
-		rowsum = new int[n];
-		colsum = new int[n];
-		this.diagsum = 0;
-		this.revdiagsum = 0;
-	}
+    public TicTacToe() {
+        this(3); // Default 3x3 board
+    }
 
-	public int move(int player,int row,int col) throws IllegalArgumentException{
-		if(row<0||col<0||row>=n||col>=n){
-			throw new IllegalArgumentException("Move out of boundary");
-		}
-		else if(board[row][col]!=0){
-			throw new IllegalArgumentException("Cell is already occupied");
-		}
-		else if(player!=0 || player!=1){
-			throw new IllegalArgumentException("Player invalid");
-		}
-		else{
-			board[row][col]=(player==1)?1:-1;
-		}
-		if(CheckStatus(player,row,col)){
-			return player;
-		}
-		else return 0;
-	}
+    private void initializeBoard() {
+        for (int i = 0; i < n; i++) {
+            for (int j = 0; j < n; j++) {
+                board[i][j] = 0;
+            }
+        }
+    }
 
-	public Boolean CheckStatus(int player,int row,int col){
-			
----------------------------------------------------------------------------------------
-		boolean flag = true;
-		for(int i = 0;i < n ; i++){
-			if(board[row][i]!=(player==1)?1:-1){
-				flag=false;
-				break;
-			}	
-		}
-		if(flag)return flag;
-	
-		flag=true;
-		for(int i = 0;i< n ; i++){
-			if(board[i][col]!=(player==1)?1:-1){
-				flag=false;
-				break;
-			}	
-		}
-		if(flag)return flag;
-		flag=true;
-		if(row==col){
-			for(int i = 0;i< n ; i++){
-				if(board[i][i]!=(player==1)?1:-1){
-					flag=false;
-					break;
-				}	
-			}
-			if(flag)return flag;
-		}
-		flag=true;
-		if(row+col==n-1){
-			for(int i = 0;i< n ; i++){
-				if(board[i][n-1-i]!=(player==1)?1:-1){
-					flag=false;
-					break;
-				}	
-			}
-			if(flag)return flag;
-		}
+    public void displayBoard() {
+        System.out.println("\nCurrent Board:");
+        System.out.print("  ");
+        for (int j = 0; j < n; j++) {
+            System.out.printf("%3d", j);
+        }
+        System.out.println();
 
-----------------------------------------------------------------------------
-\\ we can do above part in just one single for loop if we think little bit
+        for (int i = 0; i < n; i++) {
+            System.out.printf("%d ", i);
+            for (int j = 0; j < n; j++) {
+                char symbol = board[i][j] == 1 ? 'X' : (board[i][j] == -1 ? 'O' : ' ');
+                System.out.printf(" %c ", symbol);
+                if (j < n - 1) System.out.print("|");
+            }
+            System.out.println();
+            if (i < n - 1) {
+                System.out.print("  ");
+                for (int j = 0; j < n; j++) {
+                    System.out.print("---");
+                    if (j < n - 1) System.out.print("+");
+                }
+                System.out.println();
+            }
+        }
+        System.out.println();
+    }
 
-	bool flag1=true,flag2=true,flag3=true,flag4=true;
-		
-		for(int i = 0;i< n ; i++){
-			if(board[row][i]!=(player==1)?1:-1){
-				flag1=false;
-			}
-			if(board[i][col]!=(player==1)?1:-1){
-				flag2=false;
-			}
-			if(row==col){
-				if(board[i][i]!=(player==1)?1:-1){
-					flag3=false;
-				}
-			}
-			else flag3=false;
-			if(row+col==n-1){
-				if(board[i][n-1-i]!=(player==1)?1:-1){
-					flag4=false;
-				}
-			}
-			else flag4=false;
-		}
+    public boolean makeMove(int row, int col) throws IllegalArgumentException {
+        if (row < 0 || col < 0 || row >= n || col >= n) {
+            throw new IllegalArgumentException("Move out of boundary");
+        }
+        if (board[row][col] != 0) {
+            throw new IllegalArgumentException("Cell is already occupied");
+        }
+        if (gameStatus.isGameEnded()) {
+            throw new IllegalArgumentException("Game has already ended");
+        }
 
-		
-		return (flag1||flag2||flag3||flag4);
-			
-		}
+        board[row][col] = currentPlayer.getValue();
+        
+        if (checkWin(row, col)) {
+            gameStatus.endGame(currentPlayer, getOtherPlayer());
+            return true;
+        }
+        
+        if (isBoardFull()) {
+            gameStatus.endGame(null, null); // Draw
+            return true;
+        }
 
-//We can also find the resultof game in O(1) by storing sum of each moves as +1/-1
-//if our abs(sum) hits n then this means that current player won the game 
+        switchPlayer();
+        return false;
+    }
 
-	public int move2(int player,int row,int col) throws IllegalArgumentException{
-		if(row<0||col<0||row>=n||col>=n){
-			throw new IllegalArgumentException("Move out of boundary");
-		}
-		else if(board[row][col]!=0){
-			throw new IllegalArgumentException("Cell is already occupied");
-		}
-		else if(player!=0 || player!=1){
-			throw new IllegalArgumentException("Player invalid");
-		}
-		else{
-			board[row][col]=(player==1)?1:-1;
-			rowsum[row]+=(player==1)?1:-1;
-			colsum[col]+=(player==1)?1:-1;
-			if(row==col){
-				diagsum+=(player==1)?1:-1;
-			}
-			if(row+col==n-1){
-				revdiag+=(player==1)?1:-1;
-			}
-		}
-		if(CheckStatus2(player,row,col)){
-			return player;
-		}
-		else return 0;
-	}
+    private boolean checkWin(int row, int col) {
+        int playerValue = currentPlayer.getValue();
+        
+        // Check row
+        boolean rowWin = true;
+        for (int j = 0; j < n; j++) {
+            if (board[row][j] != playerValue) {
+                rowWin = false;
+                break;
+            }
+        }
+        if (rowWin) return true;
 
-	public Boolean CheckStatus2(player,row,col){
-		if(rowsum[row]==abs(n)|| colsum[col]==abs(n)|| diagsum==abs(n)|| revdiag == abs(n)){
-		return true;
-		}
-		return false;
-	}
+        // Check column
+        boolean colWin = true;
+        for (int i = 0; i < n; i++) {
+            if (board[i][col] != playerValue) {
+                colWin = false;
+                break;
+            }
+        }
+        if (colWin) return true;
 
-	
+        // Check main diagonal
+        if (row == col) {
+            boolean diagWin = true;
+            for (int i = 0; i < n; i++) {
+                if (board[i][i] != playerValue) {
+                    diagWin = false;
+                    break;
+                }
+            }
+            if (diagWin) return true;
+        }
 
+        // Check anti-diagonal
+        if (row + col == n - 1) {
+            boolean antiDiagWin = true;
+            for (int i = 0; i < n; i++) {
+                if (board[i][n - 1 - i] != playerValue) {
+                    antiDiagWin = false;
+                    break;
+                }
+            }
+            if (antiDiagWin) return true;
+        }
+
+        return false;
+    }
+
+    private boolean isBoardFull() {
+        for (int i = 0; i < n; i++) {
+            for (int j = 0; j < n; j++) {
+                if (board[i][j] == 0) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
+    private void switchPlayer() {
+        currentPlayer = (currentPlayer == player1) ? player2 : player1;
+    }
+
+    private Player getOtherPlayer() {
+        return (currentPlayer == player1) ? player2 : player1;
+    }
+
+    public void playGame() {
+        System.out.println("=== Welcome to Tic-Tac-Toe ===");
+        System.out.println("Board size: " + n + "x" + n);
+        System.out.println(player1.getName() + " plays as X");
+        System.out.println(player2.getName() + " plays as O");
+        System.out.println("Enter moves as: row col (0-indexed)");
+
+        while (!gameStatus.isGameEnded()) {
+            displayBoard();
+            System.out.println(currentPlayer.getName() + "'s turn (" + currentPlayer.getSymbol() + ")");
+            System.out.print("Enter row and column (0-" + (n-1) + "): ");
+
+            try {
+                int row = scanner.nextInt();
+                int col = scanner.nextInt();
+                boolean gameEnded = makeMove(row, col);
+                
+                if (gameEnded) {
+                    displayBoard();
+                    displayGameResult();
+                    break;
+                }
+            } catch (IllegalArgumentException e) {
+                System.out.println("Invalid move: " + e.getMessage());
+                System.out.println("Please try again.");
+            } catch (InputMismatchException e) {
+                System.out.println("Invalid input! Please enter two numbers.");
+                scanner.nextLine(); // Clear the invalid input
+            }
+        }
+    }
+
+    private void displayGameResult() {
+        System.out.println("=== Game Over ===");
+        if (gameStatus.getWinner() != null) {
+            System.out.println("🎉 " + gameStatus.getWinner().getName() + " wins!");
+        } else {
+            System.out.println("🤝 It's a draw!");
+        }
+    }
+
+    public GameStatus getGameStatus() {
+        return gameStatus;
+    }
+
+    public Player getCurrentPlayer() {
+        return currentPlayer;
+    }
+
+    public int[][] getBoard() {
+        // Return a copy to prevent external modification
+        int[][] copy = new int[n][n];
+        for (int i = 0; i < n; i++) {
+            System.arraycopy(board[i], 0, copy[i], 0, n);
+        }
+        return copy;
+    }
+
+    public static void main(String[] args) {
+        Scanner scanner = new Scanner(System.in);
+        System.out.print("Enter board size (default 3): ");
+        
+        int size = 3;
+        try {
+            size = scanner.nextInt();
+            if (size < 3 || size > 10) {
+                System.out.println("Invalid size. Using default size 3.");
+                size = 3;
+            }
+        } catch (InputMismatchException e) {
+            System.out.println("Invalid input. Using default size 3.");
+            scanner.nextLine(); // Clear invalid input
+        }
+
+        TicTacToe game = new TicTacToe(size);
+        game.playGame();
+        
+        scanner.close();
+    }
 }
 
-class Player{
-	public String Name;
-	public String rating;
-	private String password;
+class Player {
+    private String name;
+    private char symbol;
+    private int value;
+    private int wins;
+    private int losses;
 
-	public String getPassword(){
-		return this.password;
-	}
-	public String setPassword(String newPassword){
-		this.password = newPassword;
-	}
+    public Player(String name, char symbol, int value) {
+        this.name = name;
+        this.symbol = symbol;
+        this.value = value;
+        this.wins = 0;
+        this.losses = 0;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public char getSymbol() {
+        return symbol;
+    }
+
+    public int getValue() {
+        return value;
+    }
+
+    public int getWins() {
+        return wins;
+    }
+
+    public int getLosses() {
+        return losses;
+    }
+
+    public void addWin() {
+        wins++;
+    }
+
+    public void addLoss() {
+        losses++;
+    }
+
+    public double getWinRate() {
+        int totalGames = wins + losses;
+        return totalGames == 0 ? 0.0 : (double) wins / totalGames;
+    }
+
+    @Override
+    public String toString() {
+        return String.format("%s (%c) - Wins: %d, Losses: %d, Win Rate: %.2f%%", 
+                           name, symbol, wins, losses, getWinRate() * 100);
+    }
 }
 
-class GameStatus{
-	Boolean flag;
-	// if game ended flag = false;
-	// if game not ended flag = true;
-	String Winner;
-	String Loser;
+class GameStatus {
+    private boolean gameEnded;
+    private Player winner;
+    private Player loser;
 
-	public Boolean getFlag(){
-		return this.flag;
-	}
+    public GameStatus() {
+        this.gameEnded = false;
+        this.winner = null;
+        this.loser = null;
+    }
 
-	public Boolean setFlag(Boolean f){
-		this.flag = =f;
-	}
+    public boolean isGameEnded() {
+        return gameEnded;
+    }
 
-	public String getWinner() throws IllegalArgumentException{
-		if(this.flag==true){
-			throw new IllegalArgumentException("Game is still running");
-		}
-		return this.Winner;
-	}
-	public String getLosser() throws IllegalArgumentException{
-		if(this.flag==true){
-			throw new IllegalArgumentException("Game is still running");
-		}
-		return this.Losser;
-	}
-	public void setWinner(String Name) throws IllegalArgumentException{
-		if(this.flag==true){
-			throw new IllegalArgumentException("Game is still running");
-		}
-		this.Winner = Name;
-	}
-	public void setLosser(String Name) throws IllegalArgumentException{
-		if(this.flag==true){
-			throw new IllegalArgumentException("Game is still running");
-		}
-		this.Losser = Name;
-	}
-	
+    public void endGame(Player winner, Player loser) {
+        this.gameEnded = true;
+        this.winner = winner;
+        this.loser = loser;
+        
+        if (winner != null) {
+            winner.addWin();
+        }
+        if (loser != null) {
+            loser.addLoss();
+        }
+    }
 
+    public Player getWinner() throws IllegalStateException {
+        if (!gameEnded) {
+            throw new IllegalStateException("Game is still running");
+        }
+        return winner;
+    }
+
+    public Player getLoser() throws IllegalStateException {
+        if (!gameEnded) {
+            throw new IllegalStateException("Game is still running");
+        }
+        return loser;
+    }
+
+    public boolean isDraw() {
+        return gameEnded && winner == null;
+    }
+
+    public void reset() {
+        gameEnded = false;
+        winner = null;
+        loser = null;
+    }
 }
 
